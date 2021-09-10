@@ -1,0 +1,120 @@
+# Databricks notebook source
+import dbldatagen as dg
+from pyspark.sql.types import FloatType, IntegerType, StringType
+
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+genotype_row_count = 1000 * 1000000
+genotype_data_spec = (dg.DataGenerator(spark, name="genotype", rows=genotype_row_count,
+                                  partitions=10, randomSeedMethod='hash_fieldname', 
+                                  verbose=True)
+                   .withIdOutput()
+                   .withColumn("variant_location_id", IntegerType())
+                   .withColumn("material_alias", StringType(),template="aaaaxxxx", baseColumn="id")
+                   .withColumn("project_id",IntegerType(), maxValue=1000)
+                   .withColumn("total_read_depth",minValue=0, maxValue=100, random=True)
+                   .withColumn("allele1", StringType(), values=['A', 'T', 'C', 'G'], random=True)
+                   .withColumn("allele2", StringType(), values=['A', 'T', 'C', 'G'], random=True)
+                                                        )
+
+genotype_data = genotype_data_spec.build()
+display(genotype_data)
+
+# COMMAND ----------
+
+variant_location_row_count = genotype_row_count/10
+sequence_row_count = 100
+
+variant_data_spec = (dg.DataGenerator(spark, name="variant_location", rows=variant_location_row_count,
+                                  partitions=4, randomSeedMethod='hash_fieldname', 
+                                  verbose=True)
+                   .withIdOutput()
+                   .withColumn("sequence_id",IntegerType(), maxValue=sequence_row_count)
+                   .withColumn("position",minValue=0, maxValue=249*1000000, random=True)
+                   .withColumn("variant_type_code", StringType(), values=['I', 'D', 'S', 'G'], random=True)
+                   .withColumn("species_id", IntegerType(), maxValue=1000)
+                   .withColumn("strand", StringType(), values=['top', 'plus', 'minus'], random=True)
+
+                   )
+
+variant_location_data = variant_data_spec.build()
+variant_location_data.head(10)
+
+# COMMAND ----------
+
+display(variant_location_data)
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+assembly_row_count=2
+sequence_data_spec = (dg.DataGenerator(spark, name="sequence", rows=sequence_row_count,
+                                  partitions=1, randomSeedMethod='hash_fieldname', 
+                                  verbose=True)
+                   .withIdOutput()
+                   .withColumn("sequence_name",StringType(), template="\\chromosome-DD")
+                   .withColumn("assembly_id", IntegerType(), maxValue=assembly_row_count)
+
+                   )
+
+sequence_data_data = sequence_data_spec.build()
+sequence_data_data.head(10)
+
+
+# COMMAND ----------
+
+
+
+assembly_data_spec = (dg.DataGenerator(spark, name="assembly", rows=assembly_row_count,
+                                  partitions=1, randomSeedMethod='hash_fieldname', 
+                                  verbose=True)
+                   .withIdOutput()
+                   .withColumn("assembly_name",StringType(), StringType(), values=['corn_v3', 'corn_v5'])
+
+                   )
+
+assembly_data_spec = sequence_data_spec.build()
+assembly_data_spec.head(10)
+
+
+genotype_data.registerTempTable("genotype")
+variant_location_data.registerTempTable("variant_location")
+sequence_data_data.registerTempTable("sequence")
+assembly_data_spec.registerTempTable("assembly")
+
+# COMMAND ----------
+
+result = spark.sql(("select * from genotype g "
+          "inner join variant_location vl on vl.id=g.variant_location_id "
+          "inner join sequence s on s.id = vl.sequence_id "
+          "inner join assembly a on a.id = s.assembly_id " ))
+
+# COMMAND ----------
+
+
+
+genotype_data.write.parquet("s3://benceolah-databrick-bucket/tables/genotype")
+variant_location_data.write.parquet("s3a://benceolah-databrick-bucket/tables/variant_location")
+sequence_data_data.write.parquet("s3a://benceolah-databrick-bucket/tables/sequence")
+assembly_data_spec.write.parquet("s3a://benceolah-databrick-bucket/tables/assembly")
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+# MAGIC %MD
+# MAGIC 
+# MAGIC # 1) Predicate pushdown
+# MAGIC 
+# MAGIC Avoid reading data you don't need as soon as possible. 
+# MAGIC Predicate pushdown enables the 
