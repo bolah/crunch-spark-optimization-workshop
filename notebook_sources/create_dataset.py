@@ -1,4 +1,19 @@
 # Databricks notebook source
+access_key = dbutils.secrets.get(scope = "aws", key = "aws-access-key")
+secret_key = dbutils.secrets.get(scope = "aws", key = "aws-secret-key")
+sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", access_key)
+sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", secret_key)
+
+# If you are using Auto Loader file notification mode to load files, provide the AWS Region ID.
+aws_region = "us-east-1"
+sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "s3." + aws_region + ".amazonaws.com")
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
 import dbldatagen as dg
 from pyspark.sql.types import FloatType, IntegerType, StringType
 
@@ -11,7 +26,7 @@ from pyspark.sql.types import FloatType, IntegerType, StringType
 
 genotype_row_count = 1000 * 1000000
 genotype_data_spec = (dg.DataGenerator(spark, name="genotype", rows=genotype_row_count,
-                                  partitions=10, randomSeedMethod='hash_fieldname', 
+                                  partitions=100, randomSeedMethod='hash_fieldname', 
                                   verbose=True)
                    .withIdOutput()
                    .withColumn("variant_location_id", IntegerType())
@@ -101,20 +116,11 @@ result = spark.sql(("select * from genotype g "
 
 
 
-genotype_data.write.parquet("s3://benceolah-databrick-bucket/tables/genotype")
-variant_location_data.write.parquet("s3a://benceolah-databrick-bucket/tables/variant_location")
-sequence_data_data.write.parquet("s3a://benceolah-databrick-bucket/tables/sequence")
-assembly_data_spec.write.parquet("s3a://benceolah-databrick-bucket/tables/assembly")
+genotype_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/genotype3")
+variant_location_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/variant_location")
+sequence_data_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/sequence")
+assembly_data_spec.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/assembly")
 
 # COMMAND ----------
 
 
-
-# COMMAND ----------
-
-# MAGIC %MD
-# MAGIC 
-# MAGIC # 1) Predicate pushdown
-# MAGIC 
-# MAGIC Avoid reading data you don't need as soon as possible. 
-# MAGIC Predicate pushdown enables the 
