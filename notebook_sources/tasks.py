@@ -1,5 +1,5 @@
 # Databricks notebook source
-data_root_dir = "s3://hcom-data-science-prod-ds-image-pipeline/crunch/test/tables/"
+data_root_dir = "s3://<todo_add_bucket_name>/crunch/test/tables/" #todo define bucket name after we have env
 
 # COMMAND ----------
 
@@ -129,7 +129,7 @@ genotype_data.write.partitionBy("project_id").bucketBy(4,"allele1").format("parq
 # COMMAND ----------
 
 # MAGIC %sh
-# MAGIC aws s3 ls s3://hcom-data-science-prod-ds-image-pipeline/crunch/test/tables/genotype_partitioned_bucketed/
+# MAGIC aws s3 ls s3://<todo_add_bucket_name>/genotype_partitioned_bucketed/ #todo define correct bucket after we have env
 
 # COMMAND ----------
 
