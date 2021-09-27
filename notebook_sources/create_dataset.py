@@ -1,4 +1,10 @@
 # Databricks notebook source
+# MAGIC %md 
+# MAGIC 
+# MAGIC # Config
+
+# COMMAND ----------
+
 access_key = dbutils.secrets.get(scope = "aws", key = "aws-access-key")
 secret_key = dbutils.secrets.get(scope = "aws", key = "aws-secret-key")
 sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", access_key)
@@ -16,20 +22,27 @@ sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "s3." + aws_region + ".amaz
 
 import dbldatagen as dg
 from pyspark.sql.types import FloatType, IntegerType, StringType
+from pyspark.sql.functions import when, lit, col
 
 
 # COMMAND ----------
 
-
+# MAGIC %md 
+# MAGIC # Generate Genotype
 
 # COMMAND ----------
 
 genotype_row_count = 1000 * 1000000
+variant_location_row_count = genotype_row_count/10
+sequence_row_count = 100
+
+# COMMAND ----------
+
 genotype_data_spec = (dg.DataGenerator(spark, name="genotype", rows=genotype_row_count,
                                   partitions=100, randomSeedMethod='hash_fieldname', 
                                   verbose=True)
                    .withIdOutput()
-                   .withColumn("variant_location_id", IntegerType())
+                   .withColumn("variant_location_id", IntegerType(), maxValue=variant_location_row_count)
                    .withColumn("material_alias", StringType(),template="aaaaxxxx", baseColumn="id")
                    .withColumn("project_id",IntegerType(), maxValue=1000)
                    .withColumn("total_read_depth",minValue=0, maxValue=100, random=True)
@@ -42,8 +55,12 @@ display(genotype_data)
 
 # COMMAND ----------
 
-variant_location_row_count = genotype_row_count/10
-sequence_row_count = 100
+# MAGIC %md 
+# MAGIC # Generate Variant location
+
+# COMMAND ----------
+
+
 
 variant_data_spec = (dg.DataGenerator(spark, name="variant_location", rows=variant_location_row_count,
                                   partitions=4, randomSeedMethod='hash_fieldname', 
@@ -70,6 +87,11 @@ display(variant_location_data)
 
 # COMMAND ----------
 
+# MAGIC %md 
+# MAGIC # Generate Sequence data
+
+# COMMAND ----------
+
 assembly_row_count=2
 sequence_data_spec = (dg.DataGenerator(spark, name="sequence", rows=sequence_row_count,
                                   partitions=1, randomSeedMethod='hash_fieldname', 
@@ -83,6 +105,12 @@ sequence_data_spec = (dg.DataGenerator(spark, name="sequence", rows=sequence_row
 sequence_data_data = sequence_data_spec.build()
 sequence_data_data.head(10)
 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 
+# MAGIC # Generate assembly data
 
 # COMMAND ----------
 
@@ -107,6 +135,12 @@ assembly_data_spec.registerTempTable("assembly")
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC 
+# MAGIC # Random query
+
+# COMMAND ----------
+
 result = spark.sql(("select * from genotype g "
           "inner join variant_location vl on vl.id=g.variant_location_id "
           "inner join sequence s on s.id = vl.sequence_id "
@@ -114,12 +148,36 @@ result = spark.sql(("select * from genotype g "
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC 
+# MAGIC # Write out data
+
+# COMMAND ----------
 
 
-genotype_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/genotype3")
+
+genotype_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/genotype1")
+genotype_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/genotype2")
+
 variant_location_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/variant_location")
 sequence_data_data.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/sequence")
 assembly_data_spec.write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/assembly")
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC 
+# MAGIC # Adding skewed data
+
+# COMMAND ----------
+
+genotypes_for_skewed_data_generation = spark.read.parquet("s3a://benceolah-databrick-bucket/tables/genotype1")
+
+
+skewed_data = genotypes_for_skewed_data_generation.sample(fraction=0.1)
+skewed_data = skewed_data.withColumn('variant_location_id', lit(1))
+
+genotypes_for_skewed_data_generation.union(skewed_data).write.mode('overwrite').parquet("s3a://benceolah-databrick-bucket/tables/genotype_skewed_data")
 
 # COMMAND ----------
 
