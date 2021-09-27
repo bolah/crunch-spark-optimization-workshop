@@ -282,7 +282,55 @@ result.count()
 
 # COMMAND ----------
 
+# MAGIC %md 
+# MAGIC 
+# MAGIC # Spark in the cloud
+# MAGIC 
+# MAGIC ## AWS Glue
+# MAGIC AWS Glue is a serverless data integration service that makes it easy to discover, prepare, and combine data for analytics, machine learning, and application development. AWS Glue provides all the capabilities needed for data integration so that you can start analyzing your data and putting it to use in minutes instead of months.
+# MAGIC 
+# MAGIC Pros
+# MAGIC + Managed service
+# MAGIC + Ci/Cd requires extra attention
+# MAGIC 
+# MAGIC Cons
+# MAGIC + can be $
+# MAGIC + config is limited, won't scale as much as EMR/Vanila spark
+# MAGIC 
+# MAGIC 
+# MAGIC # Using object storage - your path matters
+# MAGIC  Amazon S3 automatically scales to high request rates. For example, your application can achieve at least 3,500 PUT/COPY/POST/DELETE or 5,500 GET/HEAD requests per second per prefix in a bucket.
+# MAGIC *Sustained * load is needed to S3 to scale
+# MAGIC  
+# MAGIC Prefix patterns:
+# MAGIC ```
+# MAGIC 1) s3://.../iot_device_id/year/month
+# MAGIC 2) s3://.../year/month/iot_device_id
+# MAGIC 3) s3://.../month/year/iot_device_id
+# MAGIC ```
+# MAGIC 
+# MAGIC Which one is the best?
 
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC 
+# MAGIC # Python or Scala?
+# MAGIC 
+# MAGIC ## First - don't use RDD
+# MAGIC This is the component which will be most affected by the performance of the Python code and the details of PySpark implementation. While Python performance is rather unlikely to be a problem, there at least few factors you have to consider:
+# MAGIC 
+# MAGIC * Overhead of JVM communication. Practically all data that comes to and from Python executor has to be passed through a socket and a JVM worker. While this is a relatively efficient local communication it is still not free.
+# MAGIC * Process-based executors (Python) versus thread based (single JVM multiple threads) executors (Scala). Each Python executor runs in its own process. As a side effect, it provides stronger isolation than its JVM counterpart and some control over executor lifecycle but potentially significantly higher memory usage:
+# MAGIC * * interpreter memory footprint
+# MAGIC * * footprint of the loaded libraries
+# MAGIC less efficient broadcasting (each process requires its own copy of a broadcast)
+# MAGIC Performance of Python code itself. Generally speaking Scala is faster than Python but it will vary on task to task.
+# MAGIC 
+# MAGIC ## Dataframe Python or Scala?
+# MAGIC Dataframe are probably the best choice for standard data processing tasks. Since * Python code is mostly limited to high-level logical operations on the driver, there should be no performance difference between Python and Scala*.
+# MAGIC 
+# MAGIC A single exception is usage of row-wise Python UDFs which are significantly less efficient than their Scala equivalents. While there is some chance for improvements (there has been substantial development in Spark 2.0.0), the biggest limitation is full roundtrip between internal representation (JVM) and Python interpreter. If possible, you should favor a composition of built-in expressions (example. Python UDF behavior has been improved in Spark 2.0.0, but it is still suboptimal compared to native execution.
 
 # COMMAND ----------
 
