@@ -1,5 +1,9 @@
 # Databricks notebook source
-data_root_dir = "s3://<todo_add_bucket_name>/crunch/test/tables/" #todo define bucket name after we have env
+data_root_dir = "s3://<todo_add_bucket_name>/crunch/test/tables/" #todo define bucket name after we have env test
+
+# COMMAND ----------
+
+print("quack")
 
 # COMMAND ----------
 

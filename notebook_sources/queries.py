@@ -1,6 +1,5 @@
 # Databricks notebook source
 
-
 access_key = dbutils.secrets.get(scope = "aws", key = "aws-access-key")
 secret_key = dbutils.secrets.get(scope = "aws", key = "aws-secret-key")
 sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", access_key)
