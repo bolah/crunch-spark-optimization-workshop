@@ -48,7 +48,7 @@ sequence_data_data.registerTempTable("assembly")
 # MAGIC # Your Todo
 # MAGIC Create your own environment based on our instructions. 
 # MAGIC 
-# MAGIC - Please use your first name as prefix and then underscore(_) crunch (david_crunch). ()
+# MAGIC - Please use your first name as prefix and then underscore(_) crunch (david_crunch).
 
 # COMMAND ----------
 
